@@ -15,6 +15,7 @@ def test_imports():
         ProviderError,
         ModelNotSupportedError,
     )
+
     assert UniversalLLMClient is not None
     assert ProviderType is not None
 
@@ -28,19 +29,22 @@ def test_client_creation():
 def test_auto_detection():
     """Test model provider auto-detection."""
     client = UniversalLLMClient()
-    
+
     # Test OpenAI models
     assert client._auto_detect_provider("gpt-3.5-turbo") == ProviderType.OPENAI
     assert client._auto_detect_provider("gpt-4") == ProviderType.OPENAI
-    
+
     # Test Anthropic models
-    assert client._auto_detect_provider("claude-3-sonnet-20240229") == ProviderType.ANTHROPIC
+    assert (
+        client._auto_detect_provider("claude-3-sonnet-20240229")
+        == ProviderType.ANTHROPIC
+    )
     assert client._auto_detect_provider("claude-2.1") == ProviderType.ANTHROPIC
-    
+
     # Test Deepseek models
     assert client._auto_detect_provider("deepseek-chat") == ProviderType.DEEPSEEK
     assert client._auto_detect_provider("deepseek-coder") == ProviderType.DEEPSEEK
-    
+
     # Test Mistral models
     assert client._auto_detect_provider("mistral-large-latest") == ProviderType.MISTRAL
     assert client._auto_detect_provider("mixtral-8x7b") == ProviderType.MISTRAL
@@ -49,7 +53,7 @@ def test_auto_detection():
 def test_unsupported_model():
     """Test handling of unsupported models."""
     client = UniversalLLMClient()
-    
+
     with pytest.raises(ModelNotSupportedError):
         client._auto_detect_provider("nonexistent-model")
 
@@ -75,7 +79,7 @@ def test_model_capabilities():
         supports_system_messages=True,
         supports_function_calling=False,
         supports_vision=True,
-        context_window=4096
+        context_window=4096,
     )
     assert caps.supports_system_messages is True
     assert caps.supports_function_calling is False
@@ -87,14 +91,14 @@ def test_supported_models_structure():
     """Test that get_supported_models returns proper structure."""
     client = UniversalLLMClient()
     models = client.get_supported_models()
-    
+
     # Should return a dict with all provider types
     assert isinstance(models, dict)
     assert ProviderType.OPENAI in models
     assert ProviderType.ANTHROPIC in models
     assert ProviderType.DEEPSEEK in models
     assert ProviderType.MISTRAL in models
-    
+
     # Each value should be a list
     for provider, model_list in models.items():
         assert isinstance(model_list, list)

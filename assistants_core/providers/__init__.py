@@ -9,7 +9,7 @@ from ..models import ProviderType
 
 __all__ = [
     "BaseLLMProvider",
-    "OpenAIProvider", 
+    "OpenAIProvider",
     "AnthropicProvider",
     "DeepseekProvider",
     "MistralProvider",

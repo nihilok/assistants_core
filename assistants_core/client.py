@@ -3,36 +3,36 @@
 import os
 from typing import Dict, Optional, AsyncIterator
 from .models import (
-    CompletionRequest, 
-    CompletionResponse, 
-    ModelCapabilities, 
-    ProviderType, 
+    CompletionRequest,
+    CompletionResponse,
+    ModelCapabilities,
+    ProviderType,
     Message,
-    MessageRole
+    MessageRole,
 )
 from .providers import (
     BaseLLMProvider,
     OpenAIProvider,
-    AnthropicProvider, 
+    AnthropicProvider,
     DeepseekProvider,
-    MistralProvider
+    MistralProvider,
 )
 from .exceptions import ProviderError, ModelNotSupportedError, ConfigurationError
 
 
 class UniversalLLMClient:
     """Universal client for interacting with different LLM providers."""
-    
+
     _provider_classes = {
         ProviderType.OPENAI: OpenAIProvider,
         ProviderType.ANTHROPIC: AnthropicProvider,
         ProviderType.DEEPSEEK: DeepseekProvider,
         ProviderType.MISTRAL: MistralProvider,
     }
-    
+
     def __init__(self, provider: Optional[ProviderType] = None, **kwargs) -> None:
         """Initialize the universal client.
-        
+
         Args:
             provider: The provider to use (if not specified, will auto-detect)
             **kwargs: Provider-specific configuration
@@ -40,30 +40,30 @@ class UniversalLLMClient:
         self.provider_instance: Optional[BaseLLMProvider] = None
         self.provider_type = provider
         self.config = kwargs
-        
+
         if provider:
             self._initialize_provider(provider, **kwargs)
-    
+
     def _initialize_provider(self, provider: ProviderType, **kwargs) -> None:
         """Initialize a specific provider.
-        
+
         Args:
             provider: The provider type to initialize
             **kwargs: Provider-specific configuration
         """
         if provider not in self._provider_classes:
             raise ProviderError(f"Unsupported provider: {provider}")
-        
+
         provider_class = self._provider_classes[provider]
         self.provider_instance = provider_class(**kwargs)
         self.provider_type = provider
-    
+
     def _auto_detect_provider(self, model: str) -> ProviderType:
         """Auto-detect provider based on model name.
-        
+
         Args:
             model: Model identifier
-            
+
         Returns:
             Detected provider type
         """
@@ -77,10 +77,10 @@ class UniversalLLMClient:
             except Exception:
                 # Skip providers that can't be initialized (e.g., missing API keys)
                 continue
-        
+
         # Model-based heuristics as fallback
         model_lower = model.lower()
-        
+
         if any(keyword in model_lower for keyword in ["gpt", "openai"]):
             return ProviderType.OPENAI
         elif any(keyword in model_lower for keyword in ["claude", "anthropic"]):
@@ -89,38 +89,42 @@ class UniversalLLMClient:
             return ProviderType.DEEPSEEK
         elif any(keyword in model_lower for keyword in ["mistral", "mixtral"]):
             return ProviderType.MISTRAL
-        
-        raise ModelNotSupportedError(f"Could not auto-detect provider for model: {model}")
-    
+
+        raise ModelNotSupportedError(
+            f"Could not auto-detect provider for model: {model}"
+        )
+
     def set_provider(self, provider: ProviderType, **kwargs) -> None:
         """Set or change the provider.
-        
+
         Args:
             provider: The provider type to use
             **kwargs: Provider-specific configuration
         """
         self._initialize_provider(provider, **kwargs)
-    
-    def get_supported_models(self, provider: Optional[ProviderType] = None) -> Dict[ProviderType, list]:
+
+    def get_supported_models(
+        self, provider: Optional[ProviderType] = None
+    ) -> Dict[ProviderType, list]:
         """Get supported models for all or specific provider.
-        
+
         Args:
             provider: Specific provider to get models for (if None, gets all)
-            
+
         Returns:
             Dictionary mapping provider types to their supported models
         """
         if provider:
             if provider not in self._provider_classes:
                 raise ProviderError(f"Unsupported provider: {provider}")
-            
+
             provider_class = self._provider_classes[provider]
             try:
                 temp_instance = provider_class()
                 return {provider: temp_instance.supported_models}
             except Exception:
                 return {provider: []}
-        
+
         # Get models for all providers
         all_models = {}
         for provider_type, provider_class in self._provider_classes.items():
@@ -129,27 +133,29 @@ class UniversalLLMClient:
                 all_models[provider_type] = temp_instance.supported_models
             except Exception:
                 all_models[provider_type] = []
-        
+
         return all_models
-    
-    def get_model_capabilities(self, model: str, provider: Optional[ProviderType] = None) -> ModelCapabilities:
+
+    def get_model_capabilities(
+        self, model: str, provider: Optional[ProviderType] = None
+    ) -> ModelCapabilities:
         """Get capabilities for a specific model.
-        
+
         Args:
             model: Model identifier
             provider: Provider to use (if not specified, will auto-detect)
-            
+
         Returns:
             Model capabilities
         """
         if not provider:
             provider = self._auto_detect_provider(model)
-        
+
         if not self.provider_instance or self.provider_type != provider:
             self._initialize_provider(provider, **self.config)
-        
+
         return self.provider_instance.get_model_capabilities(model)
-    
+
     async def complete(
         self,
         messages: list,
@@ -158,10 +164,10 @@ class UniversalLLMClient:
         max_tokens: Optional[int] = None,
         temperature: Optional[float] = None,
         top_p: Optional[float] = None,
-        **kwargs
+        **kwargs,
     ) -> CompletionResponse:
         """Generate a completion.
-        
+
         Args:
             messages: List of messages (can be strings or Message objects)
             model: Model identifier
@@ -170,16 +176,16 @@ class UniversalLLMClient:
             temperature: Sampling temperature
             top_p: Top-p sampling parameter
             **kwargs: Additional provider-specific parameters
-            
+
         Returns:
             Completion response
         """
         if not provider:
             provider = self._auto_detect_provider(model)
-        
+
         if not self.provider_instance or self.provider_type != provider:
             self._initialize_provider(provider, **self.config)
-        
+
         # Convert messages to Message objects if they're strings
         processed_messages = []
         for i, msg in enumerate(messages):
@@ -195,21 +201,23 @@ class UniversalLLMClient:
                     role = MessageRole.ASSISTANT
                 processed_messages.append(Message(role=role, content=msg))
             elif isinstance(msg, dict):
-                processed_messages.append(Message(role=MessageRole(msg["role"]), content=msg["content"]))
+                processed_messages.append(
+                    Message(role=MessageRole(msg["role"]), content=msg["content"])
+                )
             else:
                 processed_messages.append(msg)
-        
+
         request = CompletionRequest(
             messages=processed_messages,
             model=model,
             max_tokens=max_tokens,
             temperature=temperature,
             top_p=top_p,
-            extra_params=kwargs
+            extra_params=kwargs,
         )
-        
+
         return await self.provider_instance.complete(request)
-    
+
     async def stream_complete(
         self,
         messages: list,
@@ -218,10 +226,10 @@ class UniversalLLMClient:
         max_tokens: Optional[int] = None,
         temperature: Optional[float] = None,
         top_p: Optional[float] = None,
-        **kwargs
+        **kwargs,
     ) -> AsyncIterator[str]:
         """Generate a streaming completion.
-        
+
         Args:
             messages: List of messages (can be strings or Message objects)
             model: Model identifier
@@ -230,16 +238,16 @@ class UniversalLLMClient:
             temperature: Sampling temperature
             top_p: Top-p sampling parameter
             **kwargs: Additional provider-specific parameters
-            
+
         Yields:
             Chunks of the completion
         """
         if not provider:
             provider = self._auto_detect_provider(model)
-        
+
         if not self.provider_instance or self.provider_type != provider:
             self._initialize_provider(provider, **self.config)
-        
+
         # Convert messages to Message objects if they're strings
         processed_messages = []
         for i, msg in enumerate(messages):
@@ -255,10 +263,12 @@ class UniversalLLMClient:
                     role = MessageRole.ASSISTANT
                 processed_messages.append(Message(role=role, content=msg))
             elif isinstance(msg, dict):
-                processed_messages.append(Message(role=MessageRole(msg["role"]), content=msg["content"]))
+                processed_messages.append(
+                    Message(role=MessageRole(msg["role"]), content=msg["content"])
+                )
             else:
                 processed_messages.append(msg)
-        
+
         request = CompletionRequest(
             messages=processed_messages,
             model=model,
@@ -266,8 +276,8 @@ class UniversalLLMClient:
             temperature=temperature,
             top_p=top_p,
             stream=True,
-            extra_params=kwargs
+            extra_params=kwargs,
         )
-        
+
         async for chunk in self.provider_instance.stream_complete(request):
             yield chunk

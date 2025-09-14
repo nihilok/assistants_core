@@ -12,7 +12,7 @@ from .exceptions import AssistantsCoreError, ProviderError, ModelNotSupportedErr
 __version__ = "0.1.0"
 __all__ = [
     "UniversalLLMClient",
-    "ProviderType", 
+    "ProviderType",
     "AssistantsCoreError",
     "ProviderError",
     "ModelNotSupportedError",
